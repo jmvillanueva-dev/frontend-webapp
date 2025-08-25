@@ -85,7 +85,7 @@ const Home = () => {
               </li>
               <li>
                 <Link
-                  to="/login"
+                  to="/"
                   className="flex items-center gap-2 text-blue-950 px-4 py-2 rounded-md hover:underline font-medium transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -209,7 +209,7 @@ const Home = () => {
               </h3>
               <div className="flex flex-col space-y-3">
                 <a
-                  href="https://github.com/cristiantambaco/frontend-repo"
+                  href="https://github.com/jmvillanueva-dev/frontend-webapp.git"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center text-gray-600 hover:text-blue-600 hover:translate-x-1 duration-300 transition-transform group"

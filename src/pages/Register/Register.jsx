@@ -27,18 +27,29 @@ const Register = () => {
     setSuccessMessage("");
 
     try {
+      const { nombre, apellido, email, password, confirmPassword } = data;
+      const registrationData = {
+        nombre,
+        apellido,
+        email,
+        password,
+        confirmPassword,
+      };
+
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api";
-      const response = await fetchDataBackend(`${apiUrl}/register`, data);
+      const response = await fetchDataBackend(
+        `${apiUrl}/users/register`,
+        registrationData
+      );
 
       setSuccessMessage(
         response.message || "¡Registro exitoso! Redirigiendo..."
       );
 
-      // Redirigir al login después de 2 segundos
       setTimeout(() => {
-        navigate("/login");
-      }, 2000);
+        navigate("/");
+      }, 3000);
     } catch (error) {
       setErrorMessage(error.message || "Error al registrar usuario");
     } finally {
@@ -49,14 +60,13 @@ const Register = () => {
   return (
     <div className="relative flex justify-center items-center min-h-screen bg-gradient-to-r from-gray-700/80 via-gray-900/80 to-gray-700/80">
       <div
-        className="absolute inset-0 opacity-20  bg-cover -z-10"
+        className="absolute inset-0 opacity-20 bg-cover -z-10"
         style={{ backgroundImage: "var(--wave-background)" }}
       ></div>
       {/* Sección de formulario de registro */}
       <div className="w-full max-w-md mx-auto">
         <div className="p-6 sm:p-8 shadow-xl rounded-lg bg-white">
           {/* Contenedor del formulario */}
-
           <h1 className="text-2xl sm:text-3xl font-extrabold mb-2 text-center text-blue-700">
             Crea una Cuenta
           </h1>
@@ -87,9 +97,9 @@ const Register = () => {
                   type="text"
                   placeholder="Ingresa tu nombre"
                   className={`block w-full rounded-md border ${
-                    errors.name ? "border-red-500" : "border-gray-300"
+                    errors.nombre ? "border-red-500" : "border-gray-300"
                   } focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 py-3 px-4 text-gray-700 shadow-sm transition-all duration-300`}
-                  {...register("name", {
+                  {...register("nombre", {
                     required: "El nombre es obligatorio",
                     minLength: {
                       value: 2,
@@ -97,9 +107,9 @@ const Register = () => {
                     },
                   })}
                 />
-                {errors.name && (
+                {errors.nombre && (
                   <p className="mt-1 text-sm text-red-600">
-                    {errors.name.message}
+                    {errors.nombre.message}
                   </p>
                 )}
               </div>
@@ -113,9 +123,9 @@ const Register = () => {
                   type="text"
                   placeholder="Ingresa tu apellido"
                   className={`block w-full rounded-md border ${
-                    errors.lastname ? "border-red-500" : "border-gray-300"
+                    errors.apellido ? "border-red-500" : "border-gray-300"
                   } focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 py-3 px-4 text-gray-700 shadow-sm transition-all duration-300`}
-                  {...register("lastname", {
+                  {...register("apellido", {
                     required: "El apellido es obligatorio",
                     minLength: {
                       value: 2,
@@ -123,9 +133,9 @@ const Register = () => {
                     },
                   })}
                 />
-                {errors.lastname && (
+                {errors.apellido && (
                   <p className="mt-1 text-sm text-red-600">
-                    {errors.lastname.message}
+                    {errors.apellido.message}
                   </p>
                 )}
               </div>

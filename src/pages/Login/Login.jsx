@@ -11,7 +11,7 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
   const { fetchDataBackend } = useFetch();
-  const { setUser, setToken } = storeAuth();
+  const { login } = storeAuth();
 
   const {
     register,
@@ -26,13 +26,9 @@ const Login = () => {
     try {
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api";
-      const response = await fetchDataBackend(`${apiUrl}/login`, data);
+      const response = await fetchDataBackend(`${apiUrl}/users/login`, data);
 
-      // Guardar datos de autenticación
-      setUser(response.user);
-      setToken(response.token);
-
-      // Redirigir al dashboard
+      login(response.token, response.user);
       navigate("/dashboard");
     } catch (error) {
       setErrorMessage(error.message || "Error al iniciar sesión");

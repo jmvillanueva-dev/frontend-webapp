@@ -41,12 +41,9 @@ function useFetch() {
       } catch (error) {
         console.error("Error en fetchDataBackend:", error);
 
-        const errorMsg =
-          error.response?.data?.msg ||
-          error.message ||
-          "Error con el servidor. Inténtalo de nuevo.";
-
-        throw { message: errorMsg };
+        throw new Error(
+          error.response?.data?.message || error.message || "Error desconocido"
+        );
       }
     },
     []
