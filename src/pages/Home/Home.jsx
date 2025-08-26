@@ -218,7 +218,7 @@ const Home = () => {
                   <span>Frontend Code</span>
                 </a>
                 <a
-                  href="https://github.com/cristiantambaco/backend-repo"
+                  href="https://github.com/jmvillanueva-dev/backend-webapp.git"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center text-gray-600 hover:text-blue-600 hover:translate-x-1 duration-300 transition-transform group"

@@ -10,6 +10,6 @@ body {
   font-family: "Host Grotesk", sans-serif;
 }
 
-a.button {
+a.button, button {
   cursor: pointer;
 }
