@@ -1,24 +1,33 @@
 import { useState, useEffect } from "react";
 import useFetch from "../hooks/useFetch.js";
 import { toast } from "react-toastify";
-import { FaEdit, FaTrash, FaSave, FaTimes } from "react-icons/fa";
+import { useForm } from "react-hook-form";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaSave,
+  FaTimes,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 export default function EstudiantesModule() {
   const [estudiantes, setEstudiantes] = useState([]);
-  const [estudianteData, setEstudianteData] = useState({
-    nombre: "",
-    apellido: "",
-    cedula: "",
-    fechaNacimiento: "",
-    ciudad: "",
-    direccion: "",
-    telefono: "",
-    email: "",
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [studentToDeleteId, setStudentToDeleteId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const { fetchDataBackend } = useFetch();
 
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+  // Configuración de react-hook-form
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     fetchEstudiantes();
@@ -33,25 +42,17 @@ export default function EstudiantesModule() {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEstudianteData({ ...estudianteData, [name]: value });
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async (data) => {
     try {
       if (editingId) {
-        // Update
         await fetchDataBackend(
           `${apiUrl}/estudiantes/${editingId}`,
-          estudianteData,
+          data,
           "PUT"
         );
         toast.success("Estudiante actualizado exitosamente");
       } else {
-        // Create
-        await fetchDataBackend(`${apiUrl}/estudiantes`, estudianteData, "POST");
+        await fetchDataBackend(`${apiUrl}/estudiantes`, data, "POST");
         toast.success("Estudiante creado exitosamente");
       }
       resetForm();
@@ -63,7 +64,7 @@ export default function EstudiantesModule() {
 
   const handleEdit = (estudiante) => {
     setEditingId(estudiante.id);
-    setEstudianteData({
+    reset({
       nombre: estudiante.nombre,
       apellido: estudiante.apellido,
       cedula: estudiante.cedula,
@@ -73,24 +74,42 @@ export default function EstudiantesModule() {
       telefono: estudiante.telefono,
       email: estudiante.email,
     });
+    setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (
-      window.confirm("¿Estás seguro de que quieres eliminar este estudiante?")
-    ) {
-      try {
-        await fetchDataBackend(`${apiUrl}/estudiantes/${id}`, null, "DELETE");
-        toast.success("Estudiante eliminado exitosamente");
-        fetchEstudiantes();
-      } catch (error) {
+  const handleDeleteClick = (id) => {
+    setStudentToDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await fetchDataBackend(
+        `${apiUrl}/estudiantes/${studentToDeleteId}`,
+        null,
+        "DELETE"
+      );
+      toast.success("Estudiante eliminado exitosamente");
+      fetchEstudiantes();
+    } catch (error) {
+      if (error.response && error.response.status === 409) {
+        toast.error(error.response.data.message);
+      } else {
         toast.error(error.message);
       }
+    } finally {
+      setShowDeleteModal(false);
+      setStudentToDeleteId(null);
     }
   };
 
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setStudentToDeleteId(null);
+  };
+
   const resetForm = () => {
-    setEstudianteData({
+    reset({
       nombre: "",
       apellido: "",
       cedula: "",
@@ -101,6 +120,22 @@ export default function EstudiantesModule() {
       email: "",
     });
     setEditingId(null);
+    setIsModalOpen(false);
+  };
+
+  // Función para prevenir caracteres no numéricos en los campos de teléfono y cédula
+  const handleNumericInput = (e) => {
+    const isNumberKey = /^[0-9]$/.test(e.key);
+    const isControlKey = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "Tab",
+    ].includes(e.key);
+    if (!isNumberKey && !isControlKey) {
+      e.preventDefault();
+    }
   };
 
   return (
@@ -109,134 +144,234 @@ export default function EstudiantesModule() {
         Gestión de Estudiantes
       </h2>
 
-      {/* Formulario de Creación/Edición */}
-      <form
-        onSubmit={handleSave}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 p-4 border rounded-md shadow-inner"
-      >
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Nombre
-          </label>
-          <input
-            type="text"
-            name="nombre"
-            value={estudianteData.nombre}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Apellido
-          </label>
-          <input
-            type="text"
-            name="apellido"
-            value={estudianteData.apellido}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Cédula
-          </label>
-          <input
-            type="text"
-            name="cedula"
-            value={estudianteData.cedula}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Fecha de Nacimiento
-          </label>
-          <input
-            type="text"
-            name="fechaNacimiento"
-            value={estudianteData.fechaNacimiento}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Ciudad
-          </label>
-          <input
-            type="text"
-            name="ciudad"
-            value={estudianteData.ciudad}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Dirección
-          </label>
-          <input
-            type="text"
-            name="direccion"
-            value={estudianteData.direccion}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Teléfono
-          </label>
-          <input
-            type="text"
-            name="telefono"
-            value={estudianteData.telefono}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={estudianteData.email}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2 mt-4">
-          <button
-            type="submit"
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition-colors"
-          >
-            <FaSave />{" "}
-            {editingId ? "Actualizar Estudiante" : "Guardar Estudiante"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="flex items-center gap-2 bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 font-medium transition-colors"
+      {/* Botón para abrir el modal de creación */}
+      <div className="flex justify-end mb-6">
+        <button
+          onClick={() => {
+            setEditingId(null);
+            resetForm();
+            setIsModalOpen(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+        >
+          <FaPlus /> Nuevo Estudiante
+        </button>
+      </div>
+
+      {/* Modal para el formulario */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="relative bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">
+              {editingId ? "Editar Estudiante" : "Crear Nuevo Estudiante"}
+            </h3>
+            <form
+              onSubmit={handleSubmit(handleSave)}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
             >
-              <FaTimes /> Cancelar
-            </button>
-          )}
+              {/* Campo Nombre */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  {...register("nombre", {
+                    required: "El nombre es requerido.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.nombre ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.nombre && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.nombre.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Apellido */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Apellido
+                </label>
+                <input
+                  type="text"
+                  {...register("apellido", {
+                    required: "El apellido es requerido.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.apellido ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.apellido && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.apellido.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Cédula */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Cédula
+                </label>
+                <input
+                  type="text"
+                  {...register("cedula", {
+                    required: "La cédula es requerida.",
+                    pattern: {
+                      value: /^\d+$/,
+                      message: "Solo se permiten números.",
+                    },
+                  })}
+                  onKeyDown={handleNumericInput}
+                  className={`p-2 border rounded-md ${
+                    errors.cedula ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.cedula && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.cedula.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Fecha de Nacimiento */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Fecha de Nacimiento
+                </label>
+                <input
+                  type="date"
+                  {...register("fechaNacimiento", {
+                    required: "La fecha de nacimiento es requerida.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.fechaNacimiento
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                />
+                {errors.fechaNacimiento && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.fechaNacimiento.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Ciudad */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Ciudad
+                </label>
+                <input
+                  type="text"
+                  {...register("ciudad", {
+                    required: "La ciudad es requerida.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.ciudad ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.ciudad && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.ciudad.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Dirección */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  {...register("direccion", {
+                    required: "La dirección es requerida.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.direccion ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.direccion && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.direccion.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Teléfono */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="text"
+                  {...register("telefono", {
+                    required: "El teléfono es requerido.",
+                    pattern: {
+                      value: /^\d+$/,
+                      message: "Solo se permiten números.",
+                    },
+                  })}
+                  onKeyDown={handleNumericInput}
+                  className={`p-2 border rounded-md ${
+                    errors.telefono ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.telefono && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.telefono.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Email */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  {...register("email", {
+                    required: "El email es requerido.",
+                    pattern: {
+                      value: /^\S+@\S+$/i,
+                      message: "Formato de email inválido.",
+                    },
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.email ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.email.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2 mt-4">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition-colors"
+                >
+                  <FaSave /> {editingId ? "Actualizar" : "Guardar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex items-center gap-2 bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 font-medium transition-colors"
+                >
+                  <FaTimes /> Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
+      )}
 
       {/* Tabla de Estudiantes */}
       <div className="overflow-x-auto">
@@ -284,7 +419,7 @@ export default function EstudiantesModule() {
                       <FaEdit />
                     </button>
                     <button
-                      onClick={() => handleDelete(estudiante.id)}
+                      onClick={() => handleDeleteClick(estudiante.id)}
                       className="text-red-600 hover:text-red-900 transition-colors"
                     >
                       <FaTrash />
@@ -296,6 +431,37 @@ export default function EstudiantesModule() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="relative bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <div className="flex flex-col items-center text-center">
+              <FaExclamationTriangle className="text-red-500 text-4xl mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Confirmar Eliminación
+              </h3>
+              <p className="text-gray-600 mb-4">
+                ¿Estás seguro de que quieres eliminar este estudiante?
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={confirmDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium"
+                >
+                  Eliminar
+                </button>
+                <button
+                  onClick={cancelDelete}
+                  className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

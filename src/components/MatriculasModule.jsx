@@ -1,22 +1,35 @@
 import { useState, useEffect } from "react";
 import useFetch from "../hooks/useFetch.js";
 import { toast } from "react-toastify";
-import { FaEdit, FaTrash, FaSave, FaTimes } from "react-icons/fa";
+import { useForm } from "react-hook-form";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaSave,
+  FaTimes,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 export default function MatriculasModule() {
   const [matriculas, setMatriculas] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [materias, setMaterias] = useState([]);
-  const [matriculaData, setMatriculaData] = useState({
-    codigo: "",
-    descripcion: "",
-    estudianteId: "",
-    materiaId: "",
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [matriculaToDeleteId, setMatriculaToDeleteId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const { fetchDataBackend } = useFetch();
 
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+  // Configuración de react-hook-form para la validación del formulario
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     fetchData();
@@ -24,22 +37,14 @@ export default function MatriculasModule() {
 
   const fetchData = async () => {
     try {
-      const matriculasData = await fetchDataBackend(
-        `${apiUrl}/matriculas`,
-        null,
-        "GET"
+      // Obtener todas las matrículas, estudiantes y materias
+      const [matriculasData, estudiantesData, materiasData] = await Promise.all(
+        [
+          fetchDataBackend(`${apiUrl}/matriculas`, null, "GET"),
+          fetchDataBackend(`${apiUrl}/estudiantes`, null, "GET"),
+          fetchDataBackend(`${apiUrl}/materias`, null, "GET"),
+        ]
       );
-      const estudiantesData = await fetchDataBackend(
-        `${apiUrl}/estudiantes`,
-        null,
-        "GET"
-      );
-      const materiasData = await fetchDataBackend(
-        `${apiUrl}/materias`,
-        null,
-        "GET"
-      );
-
       setMatriculas(matriculasData);
       setEstudiantes(estudiantesData);
       setMaterias(materiasData);
@@ -48,31 +53,25 @@ export default function MatriculasModule() {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setMatriculaData({ ...matriculaData, [name]: value });
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async (data) => {
     try {
-      const data = {
-        ...matriculaData,
-        codigo: parseInt(matriculaData.codigo),
-        estudianteId: parseInt(matriculaData.estudianteId),
-        materiaId: parseInt(matriculaData.materiaId),
+      // Convertir campos numéricos de string a number antes de enviar
+      const payload = {
+        ...data,
+        codigo: Number(data.codigo),
+        estudianteId: Number(data.estudianteId),
+        materiaId: Number(data.materiaId),
       };
+
       if (editingId) {
-        // Update
         await fetchDataBackend(
           `${apiUrl}/matriculas/${editingId}`,
-          data,
+          payload,
           "PUT"
         );
         toast.success("Matrícula actualizada exitosamente");
       } else {
-        // Create
-        await fetchDataBackend(`${apiUrl}/matriculas`, data, "POST");
+        await fetchDataBackend(`${apiUrl}/matriculas`, payload, "POST");
         toast.success("Matrícula creada exitosamente");
       }
       resetForm();
@@ -84,36 +83,53 @@ export default function MatriculasModule() {
 
   const handleEdit = (matricula) => {
     setEditingId(matricula.id);
-    setMatriculaData({
+    // Usar reset para precargar los datos de la matrícula en el formulario
+    reset({
       codigo: matricula.codigo,
       descripcion: matricula.descripcion,
-      estudianteId: matricula.estudianteId,
-      materiaId: matricula.materiaId,
+      estudianteId: matricula.estudianteId.toString(),
+      materiaId: matricula.materiaId.toString(),
     });
+    setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (
-      window.confirm("¿Estás seguro de que quieres eliminar esta matrícula?")
-    ) {
-      try {
-        await fetchDataBackend(`${apiUrl}/matriculas/${id}`, null, "DELETE");
-        toast.success("Matrícula eliminada exitosamente");
-        fetchData();
-      } catch (error) {
-        toast.error(error.message);
-      }
+  const handleDeleteClick = (id) => {
+    setMatriculaToDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await fetchDataBackend(
+        `${apiUrl}/matriculas/${matriculaToDeleteId}`,
+        null,
+        "DELETE"
+      );
+      toast.success("Matrícula eliminada exitosamente");
+      fetchData();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      // Cerrar el modal de eliminación y limpiar el estado
+      setShowDeleteModal(false);
+      setMatriculaToDeleteId(null);
     }
   };
 
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setMatriculaToDeleteId(null);
+  };
+
   const resetForm = () => {
-    setMatriculaData({
+    reset({
       codigo: "",
       descripcion: "",
       estudianteId: "",
       materiaId: "",
     });
     setEditingId(null);
+    setIsModalOpen(false);
   };
 
   return (
@@ -122,94 +138,150 @@ export default function MatriculasModule() {
         Gestión de Matrículas
       </h2>
 
-      {/* Formulario de Creación/Edición */}
-      <form
-        onSubmit={handleSave}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 p-4 border rounded-md shadow-inner"
-      >
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Código
-          </label>
-          <input
-            type="number"
-            name="codigo"
-            value={matriculaData.codigo}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Descripción
-          </label>
-          <input
-            type="text"
-            name="descripcion"
-            value={matriculaData.descripcion}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Estudiante
-          </label>
-          <select
-            name="estudianteId"
-            value={matriculaData.estudianteId}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          >
-            <option value="">Seleccione un estudiante</option>
-            {estudiantes.map((est) => (
-              <option key={est.id} value={est.id}>
-                {est.nombre} {est.apellido}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">
-            Materia
-          </label>
-          <select
-            name="materiaId"
-            value={matriculaData.materiaId}
-            onChange={handleInputChange}
-            className="p-2 border rounded-md"
-            required
-          >
-            <option value="">Seleccione una materia</option>
-            {materias.map((mat) => (
-              <option key={mat.id} value={mat.id}>
-                {mat.nombre} ({mat.codigo})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="md:col-span-2 flex justify-end gap-2 mt-4">
-          <button
-            type="submit"
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition-colors"
-          >
-            <FaSave />{" "}
-            {editingId ? "Actualizar Matrícula" : "Guardar Matrícula"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="flex items-center gap-2 bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 font-medium transition-colors"
+      {/* Botón para abrir el modal de creación */}
+      <div className="flex justify-end mb-6">
+        <button
+          onClick={() => {
+            setEditingId(null);
+            resetForm();
+            setIsModalOpen(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+        >
+          <FaPlus /> Nueva Matrícula
+        </button>
+      </div>
+
+      {/* Modal para el formulario */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="relative bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">
+              {editingId ? "Editar Matrícula" : "Crear Nueva Matrícula"}
+            </h3>
+            <form
+              onSubmit={handleSubmit(handleSave)}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
-              <FaTimes /> Cancelar
-            </button>
-          )}
+              {/* Campo Código */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Código
+                </label>
+                <input
+                  type="text"
+                  {...register("codigo", {
+                    required: "El código es requerido.",
+                    pattern: {
+                      value: /^[0-9]+$/,
+                      message: "Solo se permiten números.",
+                    },
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.codigo ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.codigo && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.codigo.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Descripción */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Descripción
+                </label>
+                <input
+                  type="text"
+                  {...register("descripcion", {
+                    required: "La descripción es requerida.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.descripcion ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.descripcion && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.descripcion.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Estudiante */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Estudiante
+                </label>
+                <select
+                  {...register("estudianteId", {
+                    required: "El estudiante es requerido.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.estudianteId ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Seleccione un estudiante</option>
+                  {estudiantes.map((est) => (
+                    <option key={est.id} value={est.id}>
+                      {est.nombre} {est.apellido}
+                    </option>
+                  ))}
+                </select>
+                {errors.estudianteId && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.estudianteId.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Campo Materia */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  Materia
+                </label>
+                <select
+                  {...register("materiaId", {
+                    required: "La materia es requerida.",
+                  })}
+                  className={`p-2 border rounded-md ${
+                    errors.materiaId ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Seleccione una materia</option>
+                  {materias.map((mat) => (
+                    <option key={mat.id} value={mat.id}>
+                      {mat.nombre} ({mat.codigo})
+                    </option>
+                  ))}
+                </select>
+                {errors.materiaId && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.materiaId.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="md:col-span-2 flex justify-end gap-2 mt-4">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition-colors"
+                >
+                  <FaSave /> {editingId ? "Actualizar" : "Guardar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex items-center gap-2 bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 font-medium transition-colors"
+                >
+                  <FaTimes /> Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
+      )}
 
       {/* Tabla de Matrículas */}
       <div className="overflow-x-auto">
@@ -257,7 +329,7 @@ export default function MatriculasModule() {
                       <FaEdit />
                     </button>
                     <button
-                      onClick={() => handleDelete(matricula.id)}
+                      onClick={() => handleDeleteClick(matricula.id)}
                       className="text-red-600 hover:text-red-900 transition-colors"
                     >
                       <FaTrash />
@@ -269,6 +341,37 @@ export default function MatriculasModule() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="relative bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <div className="flex flex-col items-center text-center">
+              <FaExclamationTriangle className="text-red-500 text-4xl mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Confirmar Eliminación
+              </h3>
+              <p className="text-gray-600 mb-4">
+                ¿Estás seguro de que quieres eliminar esta matrícula?
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={confirmDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium"
+                >
+                  Eliminar
+                </button>
+                <button
+                  onClick={cancelDelete}
+                  className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

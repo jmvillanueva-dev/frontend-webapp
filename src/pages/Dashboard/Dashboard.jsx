@@ -1,5 +1,3 @@
-// src/pages/Dashboard.jsx
-
 import { useState } from "react";
 import { AiOutlineMenu, AiOutlineClose, AiOutlineLogout } from "react-icons/ai";
 import {
